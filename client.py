@@ -13,16 +13,14 @@ def connect():
     s.connect((HOST, PORT))
 
     while True:
-        # requests authorization to send frame
-        s.send(ClientCommand.request_permission_to_send_frame)
         data = s.recv(BUFF_SIZE)
 
-        # send frame
-        if data == ServerCommand.request_authorized:
+        if data == ServerCommand.request_frame:
             encoded_frame_chunks = get_encoded_frame()
+
             for chunk in encoded_frame_chunks:
                 s.send(chunk)
-                s.recv(1024)
+                s.recv(BUFF_SIZE)
 
             s.send(ClientCommand.frame_sent)
 

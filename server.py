@@ -37,25 +37,19 @@ def accept_connection():
 
         encoded_frame = b''
         while True:
+            conn.send(ServerCommand.request_frame)
+
             data = conn.recv(BUFF_SIZE)
-
-            # authorizes the client to send a frame
-            if data == ClientCommand.request_permission_to_send_frame:
-                encoded_frame = b''
-                conn.send(ServerCommand.request_authorized)
-
-            # renders the received frame
-            elif data == ClientCommand.frame_sent:
-                frame = Image.open(BytesIO(base64.b64decode(encoded_frame)))
-
-                frame_cv = cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR)
-                cv2.imshow("video", frame_cv)
-                k = cv2.waitKey(10) & 0XFF
-
-            # receives frame chunk
-            else:
-                encoded_frame += data
+            while data != ClientCommand.frame_sent:
                 conn.send(ServerCommand.frame_chunk_received)
+                encoded_frame += data
+                data = conn.recv(BUFF_SIZE)
+
+            frame = Image.open(BytesIO(base64.b64decode(encoded_frame)))
+            frame_cv = cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR)
+            cv2.imshow("video", frame_cv)
+            k = cv2.waitKey(10) & 0XFF
+            encoded_frame = b''
 
 
 if __name__ == '__main__':
