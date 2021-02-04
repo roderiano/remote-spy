@@ -4,7 +4,6 @@ import base64
 from io import BytesIO
 from commands import ClientCommand, ServerCommand
 
-
 HOST, PORT, BUFF_SIZE = '127.0.0.1', 8888, 1024
 
 
