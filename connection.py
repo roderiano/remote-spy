@@ -17,8 +17,6 @@ class Connection(Thread):
 
     def run(self):
         with self.conn:
-            print('Connected by', self.address)
-
             encoded_frame = b''
             while True:
                 self.conn.send(ServerCommand.request_frame)
