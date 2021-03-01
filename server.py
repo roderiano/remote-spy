@@ -6,30 +6,34 @@ import re
 
 HOST, PORT = '127.0.0.1', 8888
 
-job = []  # [command, args]
+job = {}
 connections = []
 
 
 def manager():
-    """ method responsible for run accept_connections thread, manage user input and execute local methods """
+    """" method responsible for run accept_connections thread, manage user input and execute local methods """
 
+    global job
     threading.Thread(target=accept_connections,).start()
 
     while True:
-        convert_input_to_job(input('remote-spy>'))
+        try:
+            job = parse_input_to_job(input('remote-spy>'))
 
-        if job:
-            if job[0] == 'list':
-                list_connections()
-            elif job[0] == 'exit':
-                stop_threads()
-                break
-            elif job[0] == 'spy':
-                enable_remote_viewing()
+            if job:
+                if job['command'] == 'list':
+                    list_connections()
+                elif job['command'] == 'exit':
+                    stop_threads()
+                    break
+                elif job['command'] == 'spy':
+                    enable_remote_viewing()
+        except Exception as error:
+            print("{}: {}".format(type(error).__name__, str(error)))
 
 
 def accept_connections():
-    """ accept connections and run as thread """
+    """" accept connections and run as thread """
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind((HOST, PORT))
@@ -42,22 +46,66 @@ def accept_connections():
         connections.append(connection_thread)
 
 
-def convert_input_to_job(input_string):
-    """ validates input command with regex and converts it to job """
+def parse_input_to_job(input_string):
+    """" validates input and parse it to job """
+
     global job
 
-    job_command = re.search(r'^([a-z]+)\s?(.*)$', input_string)
-    if job_command:
-        if job_command.group(0) in ['list', 'exit', 'spy']:
-            job = [job_command.group(0), job_command.group(0).strip()]
+    match = re.search(r'^([a-z]+)\s?(.*)$', input_string)
+    if match:
+        """" get command and args """
+        args = []
+        command = match.group(1)
+        match_args = match.group(2).strip().split(' ')
+
+        if match_args[0] == '':
+            match_args.remove('')
+
+        """" set arg validators """
+        if command == 'spy':
+            arg_validators = [{'arg_name': 'ip', 'required': True}]
+        elif command in ['list', 'exit']:
+            arg_validators = None
         else:
-            print('Invalid command')
+            raise SyntaxError('Invalid command "{}"'.format(command))
+
+        """" validate args """
+        if arg_validators is not None:
+            for validator in arg_validators:
+                validated = False
+
+                for match_arg in match_args:
+
+                    """" remove validated arg """
+                    if validated:
+                        match_args.remove(match_arg)
+                        match_args.remove(validator['arg_name'])
+                        break
+
+                    """" validate arg """
+                    arg_attribute_idx = match_args.index(match_arg) + 1
+                    if match_arg == validator['arg_name']:
+                        if arg_attribute_idx > len(match_args) - 1:
+                            raise ValueError('Command "{}" requires arg "{}" attribute'.format(command, match_arg))
+
+                        args.append({validator['arg_name']: match_args[arg_attribute_idx]})
+                        validated = True
+
+                """" raise exceptions """
+                if len(match_args) > 0:
+                    raise NameError('"{}" is an invalid arg name'.format(match_args[0]))
+                elif not validated and validator['required']:
+                    raise SyntaxError('Arg "{}" is required'.format(validator['arg_name']))
+        elif len(match_args) > 0:
+            raise ValueError('"{}" command takes no args'.format(command))
+
+        return {'command': command, 'args': args}
     else:
-        print('Invalid command syntax')
+        raise SyntaxError('Invalid command syntax')
 
 
 def list_connections():
-    """ print all connections and reset job """
+    """" print all connections and reset job """
 
     if len(connections) > 0:
         print('\nID   ADDRESS')
